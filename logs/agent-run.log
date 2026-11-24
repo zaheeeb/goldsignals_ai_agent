@@ -12,4 +12,215 @@ Gold M15 Signal Agent started. Waiting for next M15 close (+2s)...
 Signal result: action=NO_TRADE, confidence=85, entry=N/A - Market in extreme consolidation around 3538.33, sl=0.0, tp1=0.0, tp2=0.0 | Price action is tightly compressed around intraday EMAs with minimal volatility (0.36 point range). Higher timeframe (H1) trend remains overall bearish below H1 EMA50, but short-term structure lacks momentum and offer poor R:R.
 No new alert dispatched (NO_TRADE, below confidence threshold, or cooldown active).
 Next M15 evaluation at 2026-11-22T17:15:02Z UTC (in 285 seconds)
-^C
+^C[2026-11-23  6:35:34,98] Starting single-cycle run... 
+Next M15 evaluation at 2026-11-23T05:40:02Z UTC (in 227 seconds)
+Gold M15 Signal Agent started. Waiting for next M15 close (+2s)...
+[2026-11-23T05:40:01.937530100Z] Evaluating XAU/USD M15 candle...
+Signal result: action=BUY, confidence=65, entry=3618.00 - 3621.00, sl=3609.5, tp1=3628.0, tp2=3635.0 | Strong short-term bullish alignment with price trading above EMA20, EMA50, and EMA200. RSI at 66.03 indicates solid buying momentum without being overextended.
+No new alert dispatched (NO_TRADE, below confidence threshold, or cooldown active).
+Next M15 evaluation at 2026-11-23T05:45:02Z UTC (in 278 seconds)
+[2026-11-23T05:45:01.334770300Z] Evaluating XAU/USD M15 candle...
+Signal result: action=BUY, confidence=65, entry=3620.00 - 3623.00, sl=3611.5, tp1=3632.0, tp2=3640.0 | Price trades above EMA20, EMA50, and EMA200 on lower timeframes showing intraday bullish alignment. RSI at 67.8 indicates strong momentum; entering on minor pullbacks towards 3620-3623 targeting upper resistance zone.
+No new alert dispatched (NO_TRADE, below confidence threshold, or cooldown active).
+Next M15 evaluation at 2026-11-23T05:50:02Z UTC (in 290 seconds)
+[2026-11-23T05:50:01.501598200Z] Evaluating XAU/USD M15 candle...
+Signal result: action=BUY, confidence=68, entry=3615.00 - 3621.00, sl=3607.5, tp1=3628.5, tp2=3636.0 | M5 structure maintains bullish alignment above EMA20 (3613.06), EMA50, and EMA200 with healthy momentum (RSI 63.75). Price pulled back slightly from 3625.03 resistance, offering a favorable intraday dip entry above M5 EMA support. H1 price trades well above H1 EMA20/50.
+No new alert dispatched (NO_TRADE, below confidence threshold, or cooldown active).
+Next M15 evaluation at 2026-11-23T05:55:02Z UTC (in 291 seconds)
+[2026-11-23T05:55:01.853867400Z] Evaluating XAU/USD M15 candle...
+Signal result: action=BUY, confidence=65, entry=3620.50 - 3622.55, sl=3612.5, tp1=3632.5, tp2=3640.0 | Intraday structure shows bullish EMA alignment (EMA20 > EMA50 > EMA200) with price holding above 3620 and healthy RSI momentum at 64.58. Price trades above H1 EMA20 and EMA50 despite broader H1 range.
+No new alert dispatched (NO_TRADE, below confidence threshold, or cooldown active).
+Next M15 evaluation at 2026-11-23T06:00:02Z UTC (in 293 seconds)
+[2026-11-23T06:00:01.866228200Z] Evaluating XAU/USD M15 candle...
+Signal result: action=BUY, confidence=65, entry=3615.50 - 3617.50, sl=3609.5, tp1=3623.5, tp2=3630.5 | Intraday trend remains bullish with EMA20 (3614.16) > EMA50 (3604.64) > EMA200 (3564.60). Price pulled back from 3622.80 to test EMA20 support, offering a favorable continuation entry with RSI neutral at 55.67.
+No new alert dispatched (NO_TRADE, below confidence threshold, or cooldown active).
+Next M15 evaluation at 2026-11-23T06:05:02Z UTC (in 293 seconds)
+[2026-11-23T06:05:01.783954500Z] Evaluating XAU/USD M15 candle...
+Signal result: action=BUY, confidence=68, entry=3616.00 - 3618.70, sl=3609.5, tp1=3626.5, tp2=3633.0 | Price is aligned bullishly above lower-timeframe EMAs (EMA20 > EMA50 > EMA200) with an RSI of 57.78 showing steady momentum. H1 trend sits comfortably above EMA20 and EMA50 support.
+No new alert dispatched (NO_TRADE, below confidence threshold, or cooldown active).
+Next M15 evaluation at 2026-11-23T06:10:02Z UTC (in 286 seconds)
+[2026-11-23T06:10:01.133405100Z] Evaluating XAU/USD M15 candle...
+Signal result: action=BUY, confidence=68, entry=3621.00 - 3624.90, sl=3614.0, tp1=3632.0, tp2=3640.0 | Bullish intraday alignment with price trading well above M5 EMA20/50/200 and RSI at 63.46 showing healthy momentum. H1 holds above EMA20/50 dynamic support levels.
+No new alert dispatched (NO_TRADE, below confidence threshold, or cooldown active).
+Next M15 evaluation at 2026-11-23T06:15:02Z UTC (in 286 seconds)
+[2026-11-23T06:15:01.546878200Z] Evaluating XAU/USD M15 candle...
+Signal result: action=BUY, confidence=62, entry=3617.00 - 3620.50, sl=3609.5, tp1=3629.0, tp2=3636.0 | Intraday M5 technicals exhibit a bullish EMA alignment (EMA20 > EMA50 > EMA200) with price holding above 3615.80. H1 is range-bound, suggesting taking quick profit targets near local swing resistance.
+No new alert dispatched (NO_TRADE, below confidence threshold, or cooldown active).
+Next M15 evaluation at 2026-11-23T06:20:02Z UTC (in 291 seconds)
+[2026-11-23T06:20:01.774611Z] Evaluating XAU/USD M15 candle...
+Signal result: action=NO_TRADE, confidence=65, entry=None (Wait for dip near 3610-3615 EMA confluence), sl=0.0, tp1=0.0, tp2=0.0 | Price is trading near intraday resistance (3620.10) during off-peak hours with a mixed H1 higher timeframe bias. Buying directly into local highs offers unfavorable risk-reward without a pullback to short-term dynamic support.
+No new alert dispatched (NO_TRADE, below confidence threshold, or cooldown active).
+Next M15 evaluation at 2026-11-23T06:25:02Z UTC (in 292 seconds)
+[2026-11-23T06:25:01.424389100Z] Evaluating XAU/USD M15 candle...
+Signal result: action=NO_TRADE, confidence=65, entry=N/A, sl=0.0, tp1=0.0, tp2=0.0 | H1 structure is mixed/ranging and RSI (50.57) sits neutral. Price experienced a quick intraday pullback from 3621.09 to 3614.58 across EMA20 support during low-liquidity off-peak hours, offering a low probability risk-to-reward entry.
+No new alert dispatched (NO_TRADE, below confidence threshold, or cooldown active).
+Next M15 evaluation at 2026-11-23T06:30:02Z UTC (in 286 seconds)
+[2026-11-23T06:30:01.853857900Z] Evaluating XAU/USD M15 candle...
+Gemini transient error on attempt 1; retrying in 1713 ms...
+Gemini transient error on attempt 2; retrying in 3291 ms...
+Gemini transient error on attempt 3; retrying in 6271 ms...
+ERROR during M15 evaluation cycle: 429 Too Many Requests. You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://aistudio.google.com/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-3.6-flash, description: Generate content requests per day limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.
+Please retry in 1h29m44.944393752s.
+com.google.genai.errors.ClientException: 429 Too Many Requests. You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://aistudio.google.com/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-3.6-flash, description: Generate content requests per day limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.
+Please retry in 1h29m44.944393752s.
+	at com.google.genai.errors.ApiException.throwFromResponse(ApiException.java:63)
+	at com.google.genai.HttpApiResponse.getEntity(HttpApiResponse.java:39)
+	at com.google.genai.Models.privateGenerateContent(Models.java:5420)
+	at com.google.genai.Models.generateContent(Models.java:6282)
+	at com.goldagent.AgentRunner.generateWithRetry(AgentRunner.java:134)
+	at com.goldagent.AgentRunner.evaluateM15Close(AgentRunner.java:92)
+	at com.goldagent.Main.runEvaluationCycle(Main.java:153)
+	at com.goldagent.Main.lambda$scheduleNextM15Tick$2(Main.java:118)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:572)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317)
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:304)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+Next M15 evaluation at 2026-11-23T06:35:02Z UTC (in 286 seconds)
+[2026-11-23T06:35:01.337032Z] Evaluating XAU/USD M15 candle...
+Gemini transient error on attempt 1; retrying in 1901 ms...
+Gemini transient error on attempt 2; retrying in 3590 ms...
+Gemini transient error on attempt 3; retrying in 6335 ms...
+ERROR during M15 evaluation cycle: 429 Too Many Requests. You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://aistudio.google.com/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-3.6-flash, description: Generate content requests per day limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.
+Please retry in 1h24m44.799860135s.
+com.google.genai.errors.ClientException: 429 Too Many Requests. You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://aistudio.google.com/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-3.6-flash, description: Generate content requests per day limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.
+Please retry in 1h24m44.799860135s.
+	at com.google.genai.errors.ApiException.throwFromResponse(ApiException.java:63)
+	at com.google.genai.HttpApiResponse.getEntity(HttpApiResponse.java:39)
+	at com.google.genai.Models.privateGenerateContent(Models.java:5420)
+	at com.google.genai.Models.generateContent(Models.java:6282)
+	at com.goldagent.AgentRunner.generateWithRetry(AgentRunner.java:134)
+	at com.goldagent.AgentRunner.evaluateM15Close(AgentRunner.java:92)
+	at com.goldagent.Main.runEvaluationCycle(Main.java:153)
+	at com.goldagent.Main.lambda$scheduleNextM15Tick$2(Main.java:118)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:572)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317)
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:304)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+Next M15 evaluation at 2026-11-23T06:40:02Z UTC (in 286 seconds)
+[2026-11-23T06:40:01.441551400Z] Evaluating XAU/USD M15 candle...
+Gemini transient error on attempt 1; retrying in 1758 ms...
+Gemini transient error on attempt 2; retrying in 3358 ms...
+Gemini transient error on attempt 3; retrying in 6396 ms...
+ERROR during M15 evaluation cycle: 429 Too Many Requests. You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://aistudio.google.com/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-3.6-flash, description: Generate content requests per day limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.
+Please retry in 1h19m45.068958309s.
+com.google.genai.errors.ClientException: 429 Too Many Requests. You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://aistudio.google.com/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-3.6-flash, description: Generate content requests per day limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.
+Please retry in 1h19m45.068958309s.
+	at com.google.genai.errors.ApiException.throwFromResponse(ApiException.java:63)
+	at com.google.genai.HttpApiResponse.getEntity(HttpApiResponse.java:39)
+	at com.google.genai.Models.privateGenerateContent(Models.java:5420)
+	at com.google.genai.Models.generateContent(Models.java:6282)
+	at com.goldagent.AgentRunner.generateWithRetry(AgentRunner.java:134)
+	at com.goldagent.AgentRunner.evaluateM15Close(AgentRunner.java:92)
+	at com.goldagent.Main.runEvaluationCycle(Main.java:153)
+	at com.goldagent.Main.lambda$scheduleNextM15Tick$2(Main.java:118)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:572)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317)
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:304)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+Next M15 evaluation at 2026-11-23T06:45:02Z UTC (in 286 seconds)
+[2026-11-23T06:45:01.191217700Z] Evaluating XAU/USD M15 candle...
+Gemini transient error on attempt 1; retrying in 1879 ms...
+Gemini transient error on attempt 2; retrying in 3361 ms...
+Gemini transient error on attempt 3; retrying in 6453 ms...
+ERROR during M15 evaluation cycle: 429 Too Many Requests. You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://aistudio.google.com/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-3.6-flash, description: Generate content requests per day limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.
+Please retry in 1h14m45.203030621s.
+com.google.genai.errors.ClientException: 429 Too Many Requests. You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://aistudio.google.com/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-3.6-flash, description: Generate content requests per day limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.
+Please retry in 1h14m45.203030621s.
+	at com.google.genai.errors.ApiException.throwFromResponse(ApiException.java:63)
+	at com.google.genai.HttpApiResponse.getEntity(HttpApiResponse.java:39)
+	at com.google.genai.Models.privateGenerateContent(Models.java:5420)
+	at com.google.genai.Models.generateContent(Models.java:6282)
+	at com.goldagent.AgentRunner.generateWithRetry(AgentRunner.java:134)
+	at com.goldagent.AgentRunner.evaluateM15Close(AgentRunner.java:92)
+	at com.goldagent.Main.runEvaluationCycle(Main.java:153)
+	at com.goldagent.Main.lambda$scheduleNextM15Tick$2(Main.java:118)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:572)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317)
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:304)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+Next M15 evaluation at 2026-11-23T06:50:02Z UTC (in 286 seconds)
+[2026-11-23T06:50:01.009270400Z] Evaluating XAU/USD M15 candle...
+Gemini transient error on attempt 1; retrying in 1714 ms...
+Gemini transient error on attempt 2; retrying in 3559 ms...
+Gemini transient error on attempt 3; retrying in 6541 ms...
+ERROR during M15 evaluation cycle: 429 Too Many Requests. You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://aistudio.google.com/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-3.6-flash, description: Generate content requests per day limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.
+Please retry in 1h9m45.2856924s.
+com.google.genai.errors.ClientException: 429 Too Many Requests. You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://aistudio.google.com/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-3.6-flash, description: Generate content requests per day limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.
+Please retry in 1h9m45.2856924s.
+	at com.google.genai.errors.ApiException.throwFromResponse(ApiException.java:63)
+	at com.google.genai.HttpApiResponse.getEntity(HttpApiResponse.java:39)
+	at com.google.genai.Models.privateGenerateContent(Models.java:5420)
+	at com.google.genai.Models.generateContent(Models.java:6282)
+	at com.goldagent.AgentRunner.generateWithRetry(AgentRunner.java:134)
+	at com.goldagent.AgentRunner.evaluateM15Close(AgentRunner.java:92)
+	at com.goldagent.Main.runEvaluationCycle(Main.java:153)
+	at com.goldagent.Main.lambda$scheduleNextM15Tick$2(Main.java:118)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:572)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317)
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:304)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+Next M15 evaluation at 2026-11-23T06:55:02Z UTC (in 287 seconds)
+[2026-11-23T06:55:01.976096600Z] Evaluating XAU/USD M15 candle...
+Gemini transient error on attempt 1; retrying in 2029 ms...
+Gemini transient error on attempt 2; retrying in 3437 ms...
+Gemini transient error on attempt 3; retrying in 6445 ms...
+ERROR during M15 evaluation cycle: 429 Too Many Requests. You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://aistudio.google.com/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-3.6-flash, description: Generate content requests per day limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.
+Please retry in 1h4m44.159243606s.
+com.google.genai.errors.ClientException: 429 Too Many Requests. You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://aistudio.google.com/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-3.6-flash, description: Generate content requests per day limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.
+Please retry in 1h4m44.159243606s.
+	at com.google.genai.errors.ApiException.throwFromResponse(ApiException.java:63)
+	at com.google.genai.HttpApiResponse.getEntity(HttpApiResponse.java:39)
+	at com.google.genai.Models.privateGenerateContent(Models.java:5420)
+	at com.google.genai.Models.generateContent(Models.java:6282)
+	at com.goldagent.AgentRunner.generateWithRetry(AgentRunner.java:134)
+	at com.goldagent.AgentRunner.evaluateM15Close(AgentRunner.java:92)
+	at com.goldagent.Main.runEvaluationCycle(Main.java:153)
+	at com.goldagent.Main.lambda$scheduleNextM15Tick$2(Main.java:118)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:572)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317)
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:304)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+Next M15 evaluation at 2026-11-23T07:00:02Z UTC (in 285 seconds)
+[2026-11-23 18:53:02,53] Starting single-cycle run... 
+Next evaluation at 2026-11-23T22:45:02Z UTC (in 557 seconds)
+Gold Signal Agent started (interval=15m, +2s delay). Waiting for next candle close...
+[2026-11-24T01:57:38.000169400Z] Evaluating XAU/USD candle...
+[TokenUsage] prompt=792, output=148, thoughts=0, total=940
+Signal result: action=NO_TRADE, confidence=0, entry=N/A, sl=0.0, tp1=0.0, tp2=0.0 | M15 price is below EMA20/EMA50 alignment requirements or tangled relative to H1 structure, and current candle closed low near recent high expansion without clean pullback structure. Strict rule filtering enforces NO_TRADE.
+No new alert dispatched (action=NO_TRADE, confidence=0%, minConfidence=70%, cooldown=45m)
+Next evaluation at 2026-11-24T02:00:02Z UTC (in 105 seconds)
+[2026-11-24T02:00:01.058279300Z] Evaluating XAU/USD candle...
+[TokenUsage] prompt=794, output=158, thoughts=689, total=1641
+Signal result: action=BUY, confidence=70, entry=3650.00 - 3657.00, sl=3638.0, tp1=3675.0, tp2=3688.0 | H1 timeframe maintains a bullish trend and M15 EMAs remain aligned sequentially (Close > EMA20 > EMA50 > EMA200). The recent drop on the M15 bar represents a sharp pullback into EMA20 support while RSI sits comfortably at 55.78.
+>>> ALERT TRIGGERED: XAU/USD BUY | Confidence: 70/100 | Entry: 3650.00 - 3657.00 | SL: 3638.0 | TP1: 3675.0 | TP2: 3688.0 | Risk: ATR is high at 11.68; use reduced lot sizing to accommodate a ~19 USD stop distance.
+Next evaluation at 2026-11-24T02:15:02Z UTC (in 888 seconds)
+^C[2026-11-24  3:07:46,71] Starting single-cycle run... 
+Next evaluation at 2026-11-24T02:15:02Z UTC (in 431 seconds)
+Gold Signal Agent started (interval=15m, +2s delay). Waiting for next candle close...
+[2026-11-24  3:22:46,58] Starting single-cycle run... 
+Next evaluation at 2026-11-24T02:30:02Z UTC (in 430 seconds)
+Gold Signal Agent started (interval=15m, +2s delay). Waiting for next candle close...

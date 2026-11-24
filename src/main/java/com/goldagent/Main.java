@@ -19,6 +19,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class Main {
 
+    private static final int DEFAULT_EVALUATION_INTERVAL_MINUTES = 15; // Supports 15, 30, or 60
+    private static final long POST_CLOSE_DELAY_SECONDS = 2L;
     private static final int COOLDOWN_MINUTES = 45;
     private static final int MIN_CONFIDENCE = 70;
 
@@ -70,6 +72,14 @@ public class Main {
             telegramChatId = "";
         }
 
+        int evaluationIntervalMinutes = parseIntervalMinutes(
+                firstNonBlank(
+                        dotenv.get("EVALUATION_INTERVAL_MINUTES"),
+                        System.getenv("EVALUATION_INTERVAL_MINUTES")
+                ),
+                DEFAULT_EVALUATION_INTERVAL_MINUTES
+        );
+
         MarketDataTools marketTools = new MarketDataTools(twelveDataApiKey);
         CalendarTools calendarTools = new CalendarTools(newsCalendarUrl);
         AgentRunner agentRunner = new AgentRunner(geminiApiKey, marketTools, calendarTools);
@@ -80,13 +90,13 @@ public class Main {
         }
 
         ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
-            Thread t = new Thread(r, "xauusd-m15-scheduler");
+            Thread t = new Thread(r, "xauusd-signal-scheduler");
             t.setDaemon(false);
             return t;
         });
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            System.out.println("Shutting down Gold M15 Signal Agent...");
+            System.out.println("Shutting down Gold Signal Agent...");
             scheduler.shutdown();
             try {
                 if (!scheduler.awaitTermination(10, TimeUnit.SECONDS)) {
@@ -98,57 +108,90 @@ public class Main {
             }
         }));
 
-        scheduleNextM15Tick(scheduler, agentRunner, telegramNotifier);
-        System.out.println("Gold M15 Signal Agent started. Waiting for next M15 close (+2s)...");
+        scheduleNextTick(scheduler, agentRunner, telegramNotifier, evaluationIntervalMinutes);
+        System.out.printf(
+                "Gold Signal Agent started (interval=%dm, +%ds delay). Waiting for next candle close...%n",
+                evaluationIntervalMinutes,
+                POST_CLOSE_DELAY_SECONDS
+        );
     }
 
-    private static void scheduleNextM15Tick(
+    private static void scheduleNextTick(
             ScheduledExecutorService scheduler,
             AgentRunner agentRunner,
-            TelegramNotifier telegramNotifier
+            TelegramNotifier telegramNotifier,
+            int intervalMinutes
     ) {
         ZonedDateTime nowUtc = ZonedDateTime.now(ZoneOffset.UTC);
-        ZonedDateTime nextRunUtc = computeNextM15PlusTwoSeconds(nowUtc);
+        ZonedDateTime nextRunUtc = nextCandleClosePlusDelay(nowUtc, intervalMinutes, POST_CLOSE_DELAY_SECONDS);
         long delaySeconds = Math.max(1L, Duration.between(nowUtc, nextRunUtc).getSeconds());
 
-        System.out.printf("Next M15 evaluation at %s UTC (in %d seconds)%n", nextRunUtc, delaySeconds);
+        System.out.printf("Next evaluation at %s UTC (in %d seconds)%n", nextRunUtc, delaySeconds);
 
         scheduler.schedule(() -> {
             try {
                 runEvaluationCycle(agentRunner, telegramNotifier);
             } finally {
                 if (!scheduler.isShutdown()) {
-                    scheduleNextM15Tick(scheduler, agentRunner, telegramNotifier);
+                    scheduleNextTick(scheduler, agentRunner, telegramNotifier, intervalMinutes);
                 }
             }
         }, delaySeconds, TimeUnit.SECONDS);
     }
 
-    static ZonedDateTime computeNextM15PlusTwoSeconds(ZonedDateTime nowUtc) {
-        ZonedDateTime truncatedMinute = nowUtc.truncatedTo(ChronoUnit.MINUTES);
-        int minute = truncatedMinute.getMinute();
-        int nextQuarterMinute = ((minute / 15) + 1) * 15;
+    static ZonedDateTime nextCandleClosePlusDelay(
+            ZonedDateTime nowUtc,
+            int intervalMinutes,
+            long delaySeconds
+    ) {
+        ZonedDateTime baseHour = nowUtc.truncatedTo(ChronoUnit.HOURS);
+        int minuteOfHour = nowUtc.getMinute();
+        int nextSlotMinute = ((minuteOfHour / intervalMinutes) + 1) * intervalMinutes;
 
-        ZonedDateTime candidate = truncatedMinute
-                .withMinute(0)
-                .plusMinutes(nextQuarterMinute)
-                .plusSeconds(2);
+        ZonedDateTime candidate = baseHour
+                .plusMinutes(nextSlotMinute)
+                .plusSeconds(delaySeconds);
 
         if (!candidate.isAfter(nowUtc)) {
-            candidate = candidate.plusMinutes(15);
+            candidate = candidate.plusMinutes(intervalMinutes);
         }
         return candidate;
     }
 
+    private static int parseIntervalMinutes(String rawValue, int fallback) {
+        if (rawValue == null || rawValue.isBlank()) {
+            return fallback;
+        }
+        try {
+            int parsed = Integer.parseInt(rawValue.trim());
+            if (parsed == 15 || parsed == 30 || parsed == 60) {
+                return parsed;
+            }
+            System.err.printf(
+                    "WARNING: Unsupported EVALUATION_INTERVAL_MINUTES=%d; using %d minutes.%n",
+                    parsed,
+                    fallback
+            );
+            return fallback;
+        } catch (NumberFormatException ex) {
+            System.err.printf(
+                    "WARNING: Invalid EVALUATION_INTERVAL_MINUTES='%s'; using %d minutes.%n",
+                    rawValue,
+                    fallback
+            );
+            return fallback;
+        }
+    }
+
     private static void runEvaluationCycle(AgentRunner agentRunner, TelegramNotifier telegramNotifier) {
         if (!RUNNING.compareAndSet(false, true)) {
-            System.out.println("Skipping M15 cycle: previous evaluation is still running.");
+            System.out.println("Skipping evaluation cycle: previous evaluation is still running.");
             return;
         }
 
         try {
             Instant cycleStart = Instant.now();
-            System.out.printf("[%s] Evaluating XAU/USD M15 candle...%n", cycleStart);
+            System.out.printf("[%s] Evaluating XAU/USD candle...%n", cycleStart);
 
             TradeSignal signal = agentRunner.evaluateM15Close();
             System.out.printf("Signal result: action=%s, confidence=%d, entry=%s, sl=%s, tp1=%s, tp2=%s | %s%n",
@@ -165,14 +208,26 @@ public class Main {
             if (shouldAlert(signal, now)) {
                 lastAlertedAction = signal.action().trim().toUpperCase();
                 lastAlertedAt = now;
-                System.out.printf(">>> ALERT TRIGGERED: %s (confidence=%d%%) | %s%n",
-                        signal.action(), signal.confidence(), signal.atrRiskNote());
+                String formattedAlert = String.format(
+                        "XAU/USD %s | Confidence: %d/100 | Entry: %s | SL: %s | TP1: %s | TP2: %s | Risk: %s",
+                        signal.action(),
+                        signal.confidence(),
+                        signal.entryZone(),
+                        signal.stopLoss(),
+                        signal.takeProfit1(),
+                        signal.takeProfit2(),
+                        signal.atrRiskNote()
+                );
+                System.out.println(">>> ALERT TRIGGERED: " + formattedAlert);
                 telegramNotifier.sendSignalAlert(signal);
             } else {
-                System.out.println("No new alert dispatched (NO_TRADE, below confidence threshold, or cooldown active).");
+                System.out.printf(
+                        "No new alert dispatched (action=%s, confidence=%d%%, minConfidence=%d%%, cooldown=%dm)%n",
+                        signal.action(), signal.confidence(), MIN_CONFIDENCE, COOLDOWN_MINUTES
+                );
             }
         } catch (Exception ex) {
-            System.err.println("ERROR during M15 evaluation cycle: " + ex.getMessage());
+            System.err.println("ERROR during evaluation cycle: " + ex.getMessage());
             ex.printStackTrace(System.err);
         } finally {
             RUNNING.set(false);

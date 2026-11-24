@@ -110,9 +110,9 @@ public class MarketDataTools {
             double h1Ema200 = h1Candles.size() >= 200 ? computeEma(h1Candles, 200) : h1Ema50;
 
             String h1Trend;
-            if (latestH1.close() > h1Ema50 && h1Ema20 > h1Ema50 && latestH1.close() > h1Ema200) {
+            if (latestH1.close() > h1Ema50 && h1Ema20 > h1Ema50) {
                 h1Trend = "BULLISH";
-            } else if (latestH1.close() < h1Ema50 && h1Ema20 < h1Ema50 && latestH1.close() < h1Ema200) {
+            } else if (latestH1.close() < h1Ema50 && h1Ema20 < h1Ema50) {
                 h1Trend = "BEARISH";
             } else {
                 h1Trend = "RANGE_OR_MIXED";

@@ -14,7 +14,7 @@
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <google.genai.version>1.0.0</google.genai.version>
+        <google.genai.version>2.6.0</google.genai.version>
         <jackson.version>2.21.0</jackson.version>
         <dotenv.version>3.2.0</dotenv.version>
         <exec.main.class>com.goldagent.Main</exec.main.class>
