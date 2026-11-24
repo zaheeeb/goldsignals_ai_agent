@@ -6,11 +6,14 @@ import com.goldagent.tools.CalendarTools;
 import com.goldagent.tools.MarketDataTools;
 import io.github.cdimascio.dotenv.Dotenv;
 
+import java.time.DayOfWeek;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -19,64 +22,39 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class Main {
 
-    private static final int DEFAULT_EVALUATION_INTERVAL_MINUTES = 15; // Supports 15, 30, or 60
-    private static final long POST_CLOSE_DELAY_SECONDS = 2L;
-    private static final int COOLDOWN_MINUTES = 45;
-    private static final int MIN_CONFIDENCE = 70;
+    private static final int DEFAULT_EVALUATION_INTERVAL_MINUTES = 15;
+    private static final long POST_CLOSE_DELAY_SECONDS = 15L;
+    private static final int COOLDOWN_MINUTES = 30;
+    private static final int MIN_CONFIDENCE = 65;
+
+    // Active London + New York overlap/session window in UTC
+    private static final int SESSION_START_HOUR_UTC = 7;
+    private static final int SESSION_END_HOUR_UTC = 20;
 
     private static final AtomicBoolean RUNNING = new AtomicBoolean(false);
     private static volatile String lastAlertedAction = "NONE";
     private static volatile Instant lastAlertedAt = Instant.EPOCH;
 
+    private static final ZoneOffset DISPLAY_ZONE = ZoneOffset.ofHours(1);
+    private static final DateTimeFormatter DISPLAY_TIME_FORMAT =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss 'UTC+1'", Locale.ROOT);
+
     public static void main(String[] args) {
         Dotenv dotenv = Dotenv.configure().ignoreIfMissing().load();
 
-        String geminiApiKey = firstNonBlank(
-                dotenv.get("GEMINI_API_KEY"),
-                System.getenv("GEMINI_API_KEY")
-        );
+        String geminiApiKey = firstNonBlank(dotenv.get("GEMINI_API_KEY"), System.getenv("GEMINI_API_KEY"));
         if (geminiApiKey == null || geminiApiKey.isBlank()) {
             System.err.println("ERROR: GEMINI_API_KEY is not set in .env or environment.");
             System.exit(1);
         }
 
-        String twelveDataApiKey = firstNonBlank(
-                dotenv.get("TWELVE_DATA_API_KEY"),
-                System.getenv("TWELVE_DATA_API_KEY")
-        );
-        if (twelveDataApiKey == null) {
-            twelveDataApiKey = "";
-        }
-
-        String newsCalendarUrl = firstNonBlank(
-                dotenv.get("NEWS_CALENDAR_URL"),
-                System.getenv("NEWS_CALENDAR_URL")
-        );
-        if (newsCalendarUrl == null) {
-            newsCalendarUrl = "";
-        }
-
-        String telegramBotToken = firstNonBlank(
-                dotenv.get("TELEGRAM_BOT_TOKEN"),
-                System.getenv("TELEGRAM_BOT_TOKEN")
-        );
-        if (telegramBotToken == null) {
-            telegramBotToken = "";
-        }
-
-        String telegramChatId = firstNonBlank(
-                dotenv.get("TELEGRAM_CHAT_ID"),
-                System.getenv("TELEGRAM_CHAT_ID")
-        );
-        if (telegramChatId == null) {
-            telegramChatId = "";
-        }
+        String twelveDataApiKey = defaultEmpty(firstNonBlank(dotenv.get("TWELVE_DATA_API_KEY"), System.getenv("TWELVE_DATA_API_KEY")));
+        String newsCalendarUrl = defaultEmpty(firstNonBlank(dotenv.get("NEWS_CALENDAR_URL"), System.getenv("NEWS_CALENDAR_URL")));
+        String telegramBotToken = defaultEmpty(firstNonBlank(dotenv.get("TELEGRAM_BOT_TOKEN"), System.getenv("TELEGRAM_BOT_TOKEN")));
+        String telegramChatId = defaultEmpty(firstNonBlank(dotenv.get("TELEGRAM_CHAT_ID"), System.getenv("TELEGRAM_CHAT_ID")));
 
         int evaluationIntervalMinutes = parseIntervalMinutes(
-                firstNonBlank(
-                        dotenv.get("EVALUATION_INTERVAL_MINUTES"),
-                        System.getenv("EVALUATION_INTERVAL_MINUTES")
-                ),
+                firstNonBlank(dotenv.get("EVALUATION_INTERVAL_MINUTES"), System.getenv("EVALUATION_INTERVAL_MINUTES")),
                 DEFAULT_EVALUATION_INTERVAL_MINUTES
         );
 
@@ -90,13 +68,13 @@ public class Main {
         }
 
         ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
-            Thread t = new Thread(r, "xauusd-signal-scheduler");
+            Thread t = new Thread(r, "xauusd-m15-scheduler");
             t.setDaemon(false);
             return t;
         });
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            System.out.println("Shutting down Gold Signal Agent...");
+            System.out.println("Shutting down Gold M15 Signal Agent...");
             scheduler.shutdown();
             try {
                 if (!scheduler.awaitTermination(10, TimeUnit.SECONDS)) {
@@ -110,9 +88,9 @@ public class Main {
 
         scheduleNextTick(scheduler, agentRunner, telegramNotifier, evaluationIntervalMinutes);
         System.out.printf(
-                "Gold Signal Agent started (interval=%dm, +%ds delay). Waiting for next candle close...%n",
-                evaluationIntervalMinutes,
-                POST_CLOSE_DELAY_SECONDS
+                "Gold M15 Signal Agent started (interval=%dm, +%ds settle, minConf=%d%%, cooldown=%dm, session=%02d:00-%02d:00 UTC).%n",
+                evaluationIntervalMinutes, POST_CLOSE_DELAY_SECONDS, MIN_CONFIDENCE, COOLDOWN_MINUTES,
+                SESSION_START_HOUR_UTC, SESSION_END_HOUR_UTC
         );
     }
 
@@ -124,13 +102,21 @@ public class Main {
     ) {
         ZonedDateTime nowUtc = ZonedDateTime.now(ZoneOffset.UTC);
         ZonedDateTime nextRunUtc = nextCandleClosePlusDelay(nowUtc, intervalMinutes, POST_CLOSE_DELAY_SECONDS);
+        ZonedDateTime nextRunPlusOne = nextRunUtc.withZoneSameInstant(DISPLAY_ZONE);
         long delaySeconds = Math.max(1L, Duration.between(nowUtc, nextRunUtc).getSeconds());
 
-        System.out.printf("Next evaluation at %s UTC (in %d seconds)%n", nextRunUtc, delaySeconds);
+        System.out.printf("Next M15 evaluation at %s (in %d seconds)%n",
+                nextRunPlusOne.format(DISPLAY_TIME_FORMAT), delaySeconds);
 
         scheduler.schedule(() -> {
             try {
-                runEvaluationCycle(agentRunner, telegramNotifier);
+                ZonedDateTime tickUtc = ZonedDateTime.now(ZoneOffset.UTC);
+                if (isActiveTradingSession(tickUtc)) {
+                    runEvaluationCycle(agentRunner, telegramNotifier);
+                } else {
+                    System.out.printf("[%s] Outside active London/NY session (%02d:00-%02d:00 UTC); skipping tick.%n",
+                            tickUtc, SESSION_START_HOUR_UTC, SESSION_END_HOUR_UTC);
+                }
             } finally {
                 if (!scheduler.isShutdown()) {
                     scheduleNextTick(scheduler, agentRunner, telegramNotifier, intervalMinutes);
@@ -139,19 +125,21 @@ public class Main {
         }, delaySeconds, TimeUnit.SECONDS);
     }
 
-    static ZonedDateTime nextCandleClosePlusDelay(
-            ZonedDateTime nowUtc,
-            int intervalMinutes,
-            long delaySeconds
-    ) {
+    static boolean isActiveTradingSession(ZonedDateTime utcTime) {
+        DayOfWeek day = utcTime.getDayOfWeek();
+        if (day == DayOfWeek.SATURDAY || day == DayOfWeek.SUNDAY) {
+            return false;
+        }
+        int hour = utcTime.getHour();
+        return hour >= SESSION_START_HOUR_UTC && hour < SESSION_END_HOUR_UTC;
+    }
+
+    static ZonedDateTime nextCandleClosePlusDelay(ZonedDateTime nowUtc, int intervalMinutes, long delaySeconds) {
         ZonedDateTime baseHour = nowUtc.truncatedTo(ChronoUnit.HOURS);
         int minuteOfHour = nowUtc.getMinute();
         int nextSlotMinute = ((minuteOfHour / intervalMinutes) + 1) * intervalMinutes;
 
-        ZonedDateTime candidate = baseHour
-                .plusMinutes(nextSlotMinute)
-                .plusSeconds(delaySeconds);
-
+        ZonedDateTime candidate = baseHour.plusMinutes(nextSlotMinute).plusSeconds(delaySeconds);
         if (!candidate.isAfter(nowUtc)) {
             candidate = candidate.plusMinutes(intervalMinutes);
         }
@@ -167,67 +155,42 @@ public class Main {
             if (parsed == 15 || parsed == 30 || parsed == 60) {
                 return parsed;
             }
-            System.err.printf(
-                    "WARNING: Unsupported EVALUATION_INTERVAL_MINUTES=%d; using %d minutes.%n",
-                    parsed,
-                    fallback
-            );
             return fallback;
         } catch (NumberFormatException ex) {
-            System.err.printf(
-                    "WARNING: Invalid EVALUATION_INTERVAL_MINUTES='%s'; using %d minutes.%n",
-                    rawValue,
-                    fallback
-            );
             return fallback;
         }
     }
 
     private static void runEvaluationCycle(AgentRunner agentRunner, TelegramNotifier telegramNotifier) {
         if (!RUNNING.compareAndSet(false, true)) {
-            System.out.println("Skipping evaluation cycle: previous evaluation is still running.");
+            System.out.println("Skipping M15 cycle: previous evaluation is still running.");
             return;
         }
 
         try {
             Instant cycleStart = Instant.now();
-            System.out.printf("[%s] Evaluating XAU/USD candle...%n", cycleStart);
+            String formattedCycleStart = cycleStart.atZone(DISPLAY_ZONE).format(DISPLAY_TIME_FORMAT);
+            System.out.printf("[%s] Evaluating XAU/USD M15 candle...%n", formattedCycleStart);
 
             TradeSignal signal = agentRunner.evaluateM15Close();
             System.out.printf("Signal result: action=%s, confidence=%d, entry=%s, sl=%s, tp1=%s, tp2=%s | %s%n",
-                    signal.action(),
-                    signal.confidence(),
-                    signal.entryZone(),
-                    signal.stopLoss(),
-                    signal.takeProfit1(),
-                    signal.takeProfit2(),
-                    signal.reasoning()
-            );
+                    signal.action(), signal.confidence(), signal.entryZone(),
+                    signal.stopLoss(), signal.takeProfit1(), signal.takeProfit2(), signal.reasoning());
 
             Instant now = Instant.now();
             if (shouldAlert(signal, now)) {
                 lastAlertedAction = signal.action().trim().toUpperCase();
                 lastAlertedAt = now;
-                String formattedAlert = String.format(
-                        "XAU/USD %s | Confidence: %d/100 | Entry: %s | SL: %s | TP1: %s | TP2: %s | Risk: %s",
-                        signal.action(),
-                        signal.confidence(),
-                        signal.entryZone(),
-                        signal.stopLoss(),
-                        signal.takeProfit1(),
-                        signal.takeProfit2(),
-                        signal.atrRiskNote()
-                );
-                System.out.println(">>> ALERT TRIGGERED: " + formattedAlert);
+                System.out.printf(">>> ALERT TRIGGERED: XAU/USD %s | Conf: %d%% | Entry: %s | SL: %s | TP1: %s | TP2: %s%n",
+                        signal.action(), signal.confidence(), signal.entryZone(),
+                        signal.stopLoss(), signal.takeProfit1(), signal.takeProfit2());
                 telegramNotifier.sendSignalAlert(signal);
             } else {
-                System.out.printf(
-                        "No new alert dispatched (action=%s, confidence=%d%%, minConfidence=%d%%, cooldown=%dm)%n",
-                        signal.action(), signal.confidence(), MIN_CONFIDENCE, COOLDOWN_MINUTES
-                );
+                System.out.printf("No new alert dispatched (action=%s, confidence=%d%%, minConfidence=%d%%, cooldown=%dm)%n",
+                        signal.action(), signal.confidence(), MIN_CONFIDENCE, COOLDOWN_MINUTES);
             }
         } catch (Exception ex) {
-            System.err.println("ERROR during evaluation cycle: " + ex.getMessage());
+            System.err.println("ERROR during M15 evaluation cycle: " + ex.getMessage());
             ex.printStackTrace(System.err);
         } finally {
             RUNNING.set(false);
@@ -245,21 +208,18 @@ public class Main {
         if (signal.confidence() < MIN_CONFIDENCE) {
             return false;
         }
-
         boolean sameDirection = Objects.equals(lastAlertedAction, action);
-        Duration elapsed = Duration.between(lastAlertedAt, now);
-        boolean withinCooldown = elapsed.toMinutes() < COOLDOWN_MINUTES;
-
+        boolean withinCooldown = Duration.between(lastAlertedAt, now).toMinutes() < COOLDOWN_MINUTES;
         return !(sameDirection && withinCooldown);
     }
 
     private static String firstNonBlank(String a, String b) {
-        if (a != null && !a.isBlank()) {
-            return a.trim();
-        }
-        if (b != null && !b.isBlank()) {
-            return b.trim();
-        }
+        if (a != null && !a.isBlank()) return a.trim();
+        if (b != null && !b.isBlank()) return b.trim();
         return null;
+    }
+
+    private static String defaultEmpty(String value) {
+        return value == null ? "" : value;
     }
 }

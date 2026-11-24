@@ -27,33 +27,40 @@ public class AgentRunner {
     private static final int MAX_RETRIES = 3;
     private static final long BASE_BACKOFF_MS = 1_500L;
 
-    // Deterministic pre-filter thresholds (tuned for XAU/USD M15)
-    private static final double MIN_M15_ATR = 1.20;
-    private static final double MIN_EMA_SPREAD_ATR_RATIO = 0.30;
+    // Refined M15 pre-filter thresholds: blocks only true chop while letting borderline trends reach Gemini
+    private static final double MIN_M15_ATR = 1.00;
+    private static final double MIN_EMA_SPREAD_ATR_RATIO = 0.20;
     private static final double NEUTRAL_RSI_LOW = 48.0;
     private static final double NEUTRAL_RSI_HIGH = 52.0;
 
     private static final String SYSTEM_INSTRUCTION = """
             You are a disciplined XAU/USD CFD intraday technical and event-risk analyst.
             Evaluate the provided M15 market data, H1 higher-timeframe bias, and USD economic calendar context.
-            Default to NO_TRADE unless trend, volatility, momentum, and risk/reward all align cleanly.
+            Look for high-probability trend continuations, breakouts, and controlled EMA20/EMA50 pullback entries aligned with H1 bias.
 
-            MANDATORY NO_TRADE RULES (return action="NO_TRADE" immediately if ANY apply):
-            1. Higher-Timeframe Consolidation: h1Trend is RANGE_OR_MIXED. Never suggest entries inside a mixed H1 range.
-            2. Choppy / Tangled EMAs: M15 close, ema20, and ema50 are compressed or not stacked cleanly in trade direction (BUY requires close > ema20 > ema50 > ema200; SELL requires close < ema20 < ema50 < ema200).
-            3. Flat or Exhausted Momentum: M15 rsi14 is between 48 and 52, above 72 for BUY, or below 28 for SELL.
-            4. Poor Volatility / Spread Edge: M15 atr14 is below 1.20 or spread drag erodes edge.
-            5. Event Risk: High-impact USD news is imminent or active and creates unsafe spike risk.
+            MANDATORY NO_TRADE RULES (return action="NO_TRADE" ONLY if ANY of these apply):
+            1. Higher-Timeframe Range: h1Trend is RANGE_OR_MIXED. Never take directional entries in a mixed H1 range.
+            2. Direction Conflict or Tangled EMAs:
+               - BUY requires h1Trend to be BULLISH and M15 ema20 > ema50 (price may be breaking out above ema20 OR pulling back cleanly into the ema20-ema50 value zone without closing decisively below ema50).
+               - SELL requires h1Trend to be BEARISH and M15 ema20 < ema50 (price may be breaking down below ema20 OR bouncing cleanly into the ema20-ema50 value zone without closing decisively above ema50).
+            3. Flat or Exhausted Momentum: M15 rsi14 is between 48 and 52, above 78 for BUY, or below 22 for SELL.
+            4. Dead Volatility: M15 atr14 is below 1.00.
+            5. Event Risk: High-impact USD news is imminent (within 30 minutes) or actively whipping price.
+
+            SIZING & TARGET GUIDANCE:
+            - Place stopLoss beyond the opposite side of EMA50 or ~1.2x-1.5x M15 ATR14.
+            - Set takeProfit1 at ~1.5x M15 ATR14 and takeProfit2 at ~2.5x-3.0x M15 ATR14.
+            - If entry is a pullback setup, specify the exact pullback entryZone (e.g., around EMA20) rather than chasing a stretched candle.
 
             Return ONLY a single valid JSON object (no markdown fences, no extra text) with these exact fields:
             {
               "action": "BUY" | "SELL" | "NO_TRADE",
               "confidence": <integer 0-100>,
-              "entryZone": "<price range or market entry note>",
+              "entryZone": "<price range or pullback entry level>",
               "stopLoss": <number>,
               "takeProfit1": <number>,
               "takeProfit2": <number>,
-              "atrRiskNote": "<short volatility/position-sizing note>",
+              "atrRiskNote": "<short volatility, spread, and stop-buffer note>",
               "reasoning": "<concise technical and news rationale>"
             }
             """;
@@ -95,7 +102,8 @@ public class AgentRunner {
             return noTradeSignal("MARKET_DATA_ERROR: " + ex.getMessage());
         }
 
-        // Fast deterministic pre-filter: skip Gemini call during RANGE_OR_MIXED or dead-volatility chop
+        logMarketSnapshotSummary(m15Technicals, h1Bias);
+
         TradeSignal preFilterNoTrade = checkDeterministicNoTrade(m15Technicals, h1Bias);
         if (preFilterNoTrade != null) {
             return preFilterNoTrade;
@@ -123,9 +131,7 @@ public class AgentRunner {
                 %s
                 """.formatted(marketSnapshot, calendarSnapshot);
 
-        List<Content> contents = List.of(
-                Content.fromParts(Part.fromText(prompt))
-        );
+        List<Content> contents = List.of(Content.fromParts(Part.fromText(prompt)));
 
         ThinkingConfig thinkingConfig = ThinkingConfig.builder()
                 .thinkingLevel(new ThinkingLevel("LOW"))
@@ -134,7 +140,7 @@ public class AgentRunner {
 
         GenerateContentConfig config = GenerateContentConfig.builder()
                 .systemInstruction(Content.fromParts(Part.fromText(SYSTEM_INSTRUCTION)))
-                .temperature(0.2f)
+                .temperature(0.25f)
                 .responseMimeType("application/json")
                 .thinkingConfig(thinkingConfig)
                 .build();
@@ -143,6 +149,21 @@ public class AgentRunner {
         logTokenUsage(response);
         String rawText = response != null ? response.text() : null;
         return parseTradeSignal(rawText);
+    }
+
+    private void logMarketSnapshotSummary(Map<String, Object> m15, Map<String, Object> h1Bias) {
+        if (m15 == null || h1Bias == null) {
+            return;
+        }
+        System.out.printf(Locale.ROOT,
+                "[Snapshot] H1=%s | close=%.2f | EMA20=%.2f | EMA50=%.2f | RSI14=%.2f | ATR14=%.2f%n",
+                h1Bias.getOrDefault("h1Trend", "UNKNOWN"),
+                asDouble(m15.get("close"), 0.0),
+                asDouble(m15.get("ema20"), 0.0),
+                asDouble(m15.get("ema50"), 0.0),
+                asDouble(m15.get("rsi14"), 0.0),
+                asDouble(m15.get("atr14"), 0.0)
+        );
     }
 
     private TradeSignal checkDeterministicNoTrade(Map<String, Object> m15, Map<String, Object> h1Bias) {

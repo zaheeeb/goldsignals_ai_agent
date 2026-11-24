@@ -1,29 +1,31 @@
 package com.goldagent.notify;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.goldagent.model.TradeSignal;
 
 import java.net.URI;
+import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class TelegramNotifier {
 
-    private static final String TELEGRAM_API_BASE = "https://api.telegram.org/bot";
-    private static final DateTimeFormatter UTC_FORMATTER =
-            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm 'UTC'", Locale.ROOT);
+    private static final Pattern NUMBER_PATTERN = Pattern.compile("\\d+(?:\\.\\d+)?");
+    private static final ZoneOffset ALERT_ZONE = ZoneOffset.ofHours(1);
+    private static final DateTimeFormatter ALERT_TIME_FORMAT =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm 'UTC+1'", Locale.ROOT);
 
     private final String botToken;
     private final String chatId;
     private final HttpClient httpClient;
-    private final ObjectMapper mapper;
 
     public TelegramNotifier(String botToken, String chatId) {
         this.botToken = botToken == null ? "" : botToken.trim();
@@ -31,87 +33,166 @@ public class TelegramNotifier {
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
                 .build();
-        this.mapper = new ObjectMapper();
     }
 
     public boolean isConfigured() {
         return !botToken.isBlank() && !chatId.isBlank();
     }
 
-    public void sendSignalAlert(TradeSignal signal) {
-        if (signal == null || signal.action() == null) {
-            return;
-        }
+    public String formatSignalAlert(TradeSignal signal) {
+        String action = safeUpper(signal.action(), "NO_TRADE");
+        String directionTag = switch (action) {
+            case "BUY" -> "🟢 BUY";
+            case "SELL" -> "🔴 SELL";
+            default -> "⚪ " + action;
+        };
 
-        String normalizedAction = signal.action().trim().toUpperCase(Locale.ROOT);
-        if (!"BUY".equals(normalizedAction) && !"SELL".equals(normalizedAction)) {
-            return;
-        }
+        String entryZone = safeText(signal.entryZone(), "N/A");
+        double sl = signal.stopLoss();
+        double tp1 = signal.takeProfit1();
+        double tp2 = signal.takeProfit2();
+        String atrRiskNote = safeText(signal.atrRiskNote(), "None provided");
+        String reasoning = safeText(signal.reasoning(), "No rationale provided");
+        String timestampUtc = ZonedDateTime.now(ZoneOffset.UTC).format(ALERT_TIME_FORMAT);
 
-        if (!isConfigured()) {
-            System.out.println("TelegramNotifier skipped: TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID is not configured.");
-            return;
-        }
+        String rrSummary = formatRiskReward(action, entryZone, sl, tp1, tp2);
 
-        String messageText = formatSignalMessage(signal, normalizedAction);
-        sendMessage(messageText);
+        return """
+                <b>XAU/USD M15 Signal — %s</b>
+                <b>Confidence:</b> %d/100 | <b>Time:</b> %s
+
+                <b>Entry Zone:</b> <code>%s</code>
+                <b>Stop Loss (SL):</b> <code>%s</code>
+                <b>Take Profit 1 (TP1):</b> <code>%s</code>
+                <b>Take Profit 2 (TP2):</b> <code>%s</code>
+                <b>Risk / Reward:</b> %s
+
+                <b>ATR &amp; Risk Note:</b> %s
+                <b>Rationale:</b> %s
+                """.formatted(
+                escapeHtml(directionTag),
+                signal.confidence(),
+                escapeHtml(timestampUtc),
+                escapeHtml(entryZone),
+                formatPrice(sl),
+                formatPrice(tp1),
+                formatPrice(tp2),
+                escapeHtml(rrSummary),
+                escapeHtml(atrRiskNote),
+                escapeHtml(reasoning)
+        ).trim();
     }
 
-    public void sendMessage(String text) {
-        if (!isConfigured() || text == null || text.isBlank()) {
+    public void sendSignalAlert(TradeSignal signal) {
+        if (signal == null) {
+            return;
+        }
+        String message = formatSignalAlert(signal);
+        if (!isConfigured()) {
+            System.out.println("[Telegram Dry-Run]\n" + message);
             return;
         }
 
         try {
-            ObjectNode payload = mapper.createObjectNode();
-            payload.put("chat_id", chatId);
-            payload.put("text", text);
-            payload.put("disable_web_page_preview", true);
-
-            String jsonBody = mapper.writeValueAsString(payload);
-            String endpoint = TELEGRAM_API_BASE + botToken + "/sendMessage";
+            String url = "https://api.telegram.org/bot" + botToken + "/sendMessage";
+            String formBody = "chat_id=" + urlEncode(chatId)
+                    + "&text=" + urlEncode(message)
+                    + "&parse_mode=HTML"
+                    + "&disable_web_page_preview=true";
 
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(endpoint))
-                    .timeout(Duration.ofSeconds(12))
-                    .header("Content-Type", "application/json; charset=UTF-8")
-                    .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
+                    .uri(URI.create(url))
+                    .timeout(Duration.ofSeconds(15))
+                    .header("Content-Type", "application/x-www-form-urlencoded")
+                    .POST(HttpRequest.BodyPublishers.ofString(formBody))
                     .build();
 
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() != 200) {
-                System.err.printf("Telegram API error (HTTP %d): %s%n", response.statusCode(), response.body());
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                System.err.printf("Telegram send failed (HTTP %d): %s%n",
+                        response.statusCode(), response.body());
             }
         } catch (Exception ex) {
-            System.err.printf("Failed to send Telegram alert: %s%n",
-                    ex.getMessage() != null ? ex.getMessage() : ex.getClass().getSimpleName());
+            System.err.println("Error sending Telegram alert: " + ex.getMessage());
         }
     }
 
-    private String formatSignalMessage(TradeSignal signal, String action) {
-        String directionLabel = "BUY".equals(action) ? "LONG / BUY" : "SHORT / SELL";
-        String timestampUtc = ZonedDateTime.now(ZoneOffset.UTC).format(UTC_FORMATTER);
-
-        StringBuilder sb = new StringBuilder();
-        sb.append("XAU/USD M15 SIGNAL: ").append(directionLabel).append('\n');
-        sb.append("Time: ").append(timestampUtc).append('\n');
-        sb.append("Confidence: ").append(signal.confidence()).append("%\n\n");
-        sb.append("Entry Zone: ").append(safeText(signal.entryZone(), "Market / Pullback")).append('\n');
-        sb.append("Stop Loss: ").append(signal.stopLoss()).append('\n');
-        sb.append("TP1: ").append(signal.takeProfit1()).append('\n');
-        sb.append("TP2: ").append(signal.takeProfit2()).append('\n');
-
-        if (signal.atrRiskNote() != null && !signal.atrRiskNote().isBlank()) {
-            sb.append("\nRisk Note: ").append(signal.atrRiskNote().trim());
-        }
-        if (signal.reasoning() != null && !signal.reasoning().isBlank()) {
-            sb.append("\nSetup: ").append(signal.reasoning().trim());
+    private String formatRiskReward(String action, String entryZone, double sl, double tp1, double tp2) {
+        Double referenceEntry = extractReferenceEntry(entryZone, action, sl, tp1);
+        if (referenceEntry == null || sl <= 0.0) {
+            return "N/A";
         }
 
-        return sb.toString();
+        double risk = Math.abs(referenceEntry - sl);
+        if (risk < 1e-6) {
+            return "N/A (SL too close to entry)";
+        }
+
+        boolean validDirection = switch (action) {
+            case "BUY" -> referenceEntry > sl;
+            case "SELL" -> referenceEntry < sl;
+            default -> false;
+        };
+        if (!validDirection) {
+            return String.format(Locale.ROOT, "Check levels (risk=%.2f)", risk);
+        }
+
+        StringBuilder parts = new StringBuilder();
+        if (tp1 > 0.0) {
+            double reward1 = Math.abs(tp1 - referenceEntry);
+            parts.append(String.format(Locale.ROOT, "TP1 1:%.2f ($%.2f risk)", reward1 / risk, risk));
+        }
+        if (tp2 > 0.0) {
+            double reward2 = Math.abs(tp2 - referenceEntry);
+            if (!parts.isEmpty()) {
+                parts.append(" | ");
+            }
+            parts.append(String.format(Locale.ROOT, "TP2 1:%.2f", reward2 / risk));
+        }
+
+        return parts.isEmpty() ? "N/A" : parts.toString();
+    }
+
+    private Double extractReferenceEntry(String entryZone, String action, double sl, double tp1) {
+        Matcher matcher = NUMBER_PATTERN.matcher(entryZone);
+        double sum = 0.0;
+        int count = 0;
+        while (matcher.find()) {
+            try {
+                sum += Double.parseDouble(matcher.group());
+                count++;
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        if (count > 0) {
+            return sum / count;
+        }
+        if (tp1 > 0.0 && sl > 0.0) {
+            return "BUY".equals(action) ? Math.max(sl, tp1 - (tp1 - sl) * 0.5) : Math.min(sl, tp1 + (sl - tp1) * 0.5);
+        }
+        return null;
+    }
+
+    private String formatPrice(double value) {
+        return value > 0.0 ? String.format(Locale.ROOT, "%.2f", value) : "N/A";
     }
 
     private String safeText(String value, String fallback) {
         return (value == null || value.isBlank()) ? fallback : value.trim();
+    }
+
+    private String safeUpper(String value, String fallback) {
+        return (value == null || value.isBlank()) ? fallback : value.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private String escapeHtml(String text) {
+        return text
+                .replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;");
+    }
+
+    private String urlEncode(String value) {
+        return URLEncoder.encode(value, StandardCharsets.UTF_8);
     }
 }
