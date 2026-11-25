@@ -22,10 +22,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class Main {
 
-    private static final int DEFAULT_EVALUATION_INTERVAL_MINUTES = 15;
-    private static final long POST_CLOSE_DELAY_SECONDS = 15L;
-    private static final int COOLDOWN_MINUTES = 30;
+    private static final int DEFAULT_EVALUATION_INTERVAL_MINUTES = 5;
+    private static final long POST_CLOSE_DELAY_SECONDS = 20L;
+    private static final int COOLDOWN_MINUTES = 15;
     private static final int MIN_CONFIDENCE = 65;
+    private static final long STARTUP_DELAY_MINUTES = 15L;
 
     // Active London + New York overlap/session window in UTC
     private static final int SESSION_START_HOUR_UTC = 7;
@@ -68,13 +69,13 @@ public class Main {
         }
 
         ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
-            Thread t = new Thread(r, "xauusd-m15-scheduler");
+            Thread t = new Thread(r, "xauusd-m5-scheduler");
             t.setDaemon(false);
             return t;
         });
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            System.out.println("Shutting down Gold M15 Signal Agent...");
+            System.out.println("Shutting down Gold M5/M15 Signal Agent...");
             scheduler.shutdown();
             try {
                 if (!scheduler.awaitTermination(10, TimeUnit.SECONDS)) {
@@ -86,9 +87,22 @@ public class Main {
             }
         }));
 
+        if (STARTUP_DELAY_MINUTES > 0) {
+            ZonedDateTime resumeAtPlusOne = ZonedDateTime.now(ZoneOffset.UTC)
+                    .plusMinutes(STARTUP_DELAY_MINUTES)
+                    .withZoneSameInstant(DISPLAY_ZONE);
+            System.out.printf("Pausing startup for %d minutes; first schedule check at %s.%n",
+                    STARTUP_DELAY_MINUTES, resumeAtPlusOne.format(DISPLAY_TIME_FORMAT));
+            try {
+                Thread.sleep(TimeUnit.MINUTES.toMillis(STARTUP_DELAY_MINUTES));
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
+            }
+        }
         scheduleNextTick(scheduler, agentRunner, telegramNotifier, evaluationIntervalMinutes);
         System.out.printf(
-                "Gold M15 Signal Agent started (interval=%dm, +%ds settle, minConf=%d%%, cooldown=%dm, session=%02d:00-%02d:00 UTC).%n",
+                "Gold M5/M15 Signal Agent started (interval=%dm, +%ds settle, minConf=%d%%, cooldown=%dm, session=%02d:00-%02d:00 UTC).%n",
                 evaluationIntervalMinutes, POST_CLOSE_DELAY_SECONDS, MIN_CONFIDENCE, COOLDOWN_MINUTES,
                 SESSION_START_HOUR_UTC, SESSION_END_HOUR_UTC
         );
@@ -105,7 +119,7 @@ public class Main {
         ZonedDateTime nextRunPlusOne = nextRunUtc.withZoneSameInstant(DISPLAY_ZONE);
         long delaySeconds = Math.max(1L, Duration.between(nowUtc, nextRunUtc).getSeconds());
 
-        System.out.printf("Next M15 evaluation at %s (in %d seconds)%n",
+        System.out.printf("Next M5 evaluation at %s (in %d seconds)%n",
                 nextRunPlusOne.format(DISPLAY_TIME_FORMAT), delaySeconds);
 
         scheduler.schedule(() -> {
@@ -114,8 +128,9 @@ public class Main {
                 if (isActiveTradingSession(tickUtc)) {
                     runEvaluationCycle(agentRunner, telegramNotifier);
                 } else {
+                    String formattedTick = tickUtc.withZoneSameInstant(DISPLAY_ZONE).format(DISPLAY_TIME_FORMAT);
                     System.out.printf("[%s] Outside active London/NY session (%02d:00-%02d:00 UTC); skipping tick.%n",
-                            tickUtc, SESSION_START_HOUR_UTC, SESSION_END_HOUR_UTC);
+                            formattedTick, SESSION_START_HOUR_UTC, SESSION_END_HOUR_UTC);
                 }
             } finally {
                 if (!scheduler.isShutdown()) {
@@ -152,7 +167,7 @@ public class Main {
         }
         try {
             int parsed = Integer.parseInt(rawValue.trim());
-            if (parsed == 15 || parsed == 30 || parsed == 60) {
+            if (parsed == 5 || parsed == 15 || parsed == 30 || parsed == 60) {
                 return parsed;
             }
             return fallback;
@@ -163,16 +178,16 @@ public class Main {
 
     private static void runEvaluationCycle(AgentRunner agentRunner, TelegramNotifier telegramNotifier) {
         if (!RUNNING.compareAndSet(false, true)) {
-            System.out.println("Skipping M15 cycle: previous evaluation is still running.");
+            System.out.println("Skipping M5 cycle: previous evaluation is still running.");
             return;
         }
 
         try {
             Instant cycleStart = Instant.now();
             String formattedCycleStart = cycleStart.atZone(DISPLAY_ZONE).format(DISPLAY_TIME_FORMAT);
-            System.out.printf("[%s] Evaluating XAU/USD M15 candle...%n", formattedCycleStart);
+            System.out.printf("[%s] Evaluating XAU/USD M5 candle (M15 bias)...%n", formattedCycleStart);
 
-            TradeSignal signal = agentRunner.evaluateM15Close();
+            TradeSignal signal = agentRunner.evaluateM5Close();
             System.out.printf("Signal result: action=%s, confidence=%d, entry=%s, sl=%s, tp1=%s, tp2=%s | %s%n",
                     signal.action(), signal.confidence(), signal.entryZone(),
                     signal.stopLoss(), signal.takeProfit1(), signal.takeProfit2(), signal.reasoning());
@@ -190,7 +205,7 @@ public class Main {
                         signal.action(), signal.confidence(), MIN_CONFIDENCE, COOLDOWN_MINUTES);
             }
         } catch (Exception ex) {
-            System.err.println("ERROR during M15 evaluation cycle: " + ex.getMessage());
+            System.err.println("ERROR during M5 evaluation cycle: " + ex.getMessage());
             ex.printStackTrace(System.err);
         } finally {
             RUNNING.set(false);

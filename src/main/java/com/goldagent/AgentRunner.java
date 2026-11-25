@@ -27,30 +27,30 @@ public class AgentRunner {
     private static final int MAX_RETRIES = 3;
     private static final long BASE_BACKOFF_MS = 1_500L;
 
-    // Refined M15 pre-filter thresholds: blocks only true chop while letting borderline trends reach Gemini
-    private static final double MIN_M15_ATR = 1.00;
-    private static final double MIN_EMA_SPREAD_ATR_RATIO = 0.20;
+    // Refined M5 pre-filter thresholds: blocks only true chop while letting borderline trends reach Gemini
+    private static final double MIN_M5_ATR = 0.55;
+    private static final double MIN_EMA_SPREAD_ATR_RATIO = 0.18;
     private static final double NEUTRAL_RSI_LOW = 48.0;
     private static final double NEUTRAL_RSI_HIGH = 52.0;
 
     private static final String SYSTEM_INSTRUCTION = """
             You are a disciplined XAU/USD CFD intraday technical and event-risk analyst.
-            Evaluate the provided M15 market data, H1 higher-timeframe bias, and USD economic calendar context.
-            Look for high-probability trend continuations, breakouts, and controlled EMA20/EMA50 pullback entries aligned with H1 bias.
+            Evaluate the provided M5 market data, M15 higher-timeframe bias, and USD economic calendar context.
+            Look for high-probability trend continuations, breakouts, and controlled EMA20/EMA50 pullback entries aligned with M15 bias.
 
             MANDATORY NO_TRADE RULES (return action="NO_TRADE" ONLY if ANY of these apply):
-            1. Higher-Timeframe Range: h1Trend is RANGE_OR_MIXED. Never take directional entries in a mixed H1 range.
+            1. Higher-Timeframe Range: htfTrend (M15) is RANGE_OR_MIXED. Never take directional entries in a mixed M15 range.
             2. Direction Conflict or Tangled EMAs:
-               - BUY requires h1Trend to be BULLISH and M15 ema20 > ema50 (price may be breaking out above ema20 OR pulling back cleanly into the ema20-ema50 value zone without closing decisively below ema50).
-               - SELL requires h1Trend to be BEARISH and M15 ema20 < ema50 (price may be breaking down below ema20 OR bouncing cleanly into the ema20-ema50 value zone without closing decisively above ema50).
-            3. Flat or Exhausted Momentum: M15 rsi14 is between 48 and 52, above 78 for BUY, or below 22 for SELL.
-            4. Dead Volatility: M15 atr14 is below 1.00.
+               - BUY requires htfTrend (M15) to be BULLISH and M5 ema20 > ema50 (price may be breaking out above ema20 OR pulling back cleanly into the ema20-ema50 value zone without closing decisively below ema50).
+               - SELL requires htfTrend (M15) to be BEARISH and M5 ema20 < ema50 (price may be breaking down below ema20 OR bouncing cleanly into the ema20-ema50 value zone without closing decisively above ema50).
+            3. Flat or Exhausted Momentum: M5 rsi14 is between 48 and 52, above 78 for BUY, or below 22 for SELL.
+            4. Dead Volatility: M5 atr14 is below 0.55.
             5. Event Risk: High-impact USD news is imminent (within 30 minutes) or actively whipping price.
 
             SIZING & TARGET GUIDANCE:
-            - Place stopLoss beyond the opposite side of EMA50 or ~1.2x-1.5x M15 ATR14.
-            - Set takeProfit1 at ~1.5x M15 ATR14 and takeProfit2 at ~2.5x-3.0x M15 ATR14.
-            - If entry is a pullback setup, specify the exact pullback entryZone (e.g., around EMA20) rather than chasing a stretched candle.
+            - Place stopLoss beyond the opposite side of M5 EMA50 or ~1.2x-1.5x M5 ATR14.
+            - Set takeProfit1 at ~1.5x M5 ATR14 and takeProfit2 at ~2.5x-3.0x M5 ATR14.
+            - If entry is a pullback setup, specify the exact pullback entryZone (e.g., around M5 EMA20) rather than chasing a stretched candle.
 
             Return ONLY a single valid JSON object (no markdown fences, no extra text) with these exact fields:
             {
@@ -88,23 +88,23 @@ public class AgentRunner {
         this.objectMapper = new ObjectMapper();
     }
 
-    public TradeSignal evaluateM15Close() {
+    public TradeSignal evaluateM5Close() {
         if (marketDataTools == null) {
             return noTradeSignal("NO_MARKET_DATA_TOOL");
         }
 
-        Map<String, Object> m15Technicals;
-        Map<String, Object> h1Bias;
+        Map<String, Object> m5Technicals;
+        Map<String, Object> m15Bias;
         try {
-            m15Technicals = marketDataTools.getXauUsdTechnicals("M15", 220);
-            h1Bias = marketDataTools.getHigherTimeframeBias();
+            m5Technicals = marketDataTools.getXauUsdTechnicals("M5", 220);
+            m15Bias = marketDataTools.getHigherTimeframeBias("M15");
         } catch (Exception ex) {
             return noTradeSignal("MARKET_DATA_ERROR: " + ex.getMessage());
         }
 
-        logMarketSnapshotSummary(m15Technicals, h1Bias);
+        logMarketSnapshotSummary(m5Technicals, m15Bias);
 
-        TradeSignal preFilterNoTrade = checkDeterministicNoTrade(m15Technicals, h1Bias);
+        TradeSignal preFilterNoTrade = checkDeterministicNoTrade(m5Technicals, m15Bias);
         if (preFilterNoTrade != null) {
             return preFilterNoTrade;
         }
@@ -112,8 +112,8 @@ public class AgentRunner {
         String marketSnapshot;
         try {
             Map<String, Object> combined = new LinkedHashMap<>();
-            combined.put("m15Technicals", m15Technicals);
-            combined.put("higherTimeframeBias", h1Bias);
+            combined.put("m5Technicals", m5Technicals);
+            combined.put("higherTimeframeBias", m15Bias);
             marketSnapshot = objectMapper.writeValueAsString(combined);
         } catch (Exception ex) {
             return noTradeSignal("MARKET_SERIALIZATION_ERROR: " + ex.getMessage());
@@ -122,9 +122,9 @@ public class AgentRunner {
         String calendarSnapshot = fetchCalendarContext();
 
         String prompt = """
-                Evaluate the latest closed XAU/USD M15 candle and return a TradeSignal JSON object.
+                Evaluate the latest closed XAU/USD M5 candle and return a TradeSignal JSON object.
 
-                === MARKET DATA (XAU/USD M15 & H1) ===
+                === MARKET DATA (XAU/USD M5 & M15) ===
                 %s
 
                 === USD ECONOMIC CALENDAR ===
@@ -151,52 +151,54 @@ public class AgentRunner {
         return parseTradeSignal(rawText);
     }
 
-    private void logMarketSnapshotSummary(Map<String, Object> m15, Map<String, Object> h1Bias) {
-        if (m15 == null || h1Bias == null) {
+    private void logMarketSnapshotSummary(Map<String, Object> m5, Map<String, Object> m15Bias) {
+        if (m5 == null || m15Bias == null) {
             return;
         }
+        Object htfTrend = m15Bias.getOrDefault("htfTrend", m15Bias.getOrDefault("h1Trend", "UNKNOWN"));
         System.out.printf(Locale.ROOT,
-                "[Snapshot] H1=%s | close=%.2f | EMA20=%.2f | EMA50=%.2f | RSI14=%.2f | ATR14=%.2f%n",
-                h1Bias.getOrDefault("h1Trend", "UNKNOWN"),
-                asDouble(m15.get("close"), 0.0),
-                asDouble(m15.get("ema20"), 0.0),
-                asDouble(m15.get("ema50"), 0.0),
-                asDouble(m15.get("rsi14"), 0.0),
-                asDouble(m15.get("atr14"), 0.0)
+                "[Snapshot] M15=%s | M5 close=%.2f | EMA20=%.2f | EMA50=%.2f | RSI14=%.2f | ATR14=%.2f%n",
+                htfTrend,
+                asDouble(m5.get("close"), 0.0),
+                asDouble(m5.get("ema20"), 0.0),
+                asDouble(m5.get("ema50"), 0.0),
+                asDouble(m5.get("rsi14"), 0.0),
+                asDouble(m5.get("atr14"), 0.0)
         );
     }
 
-    private TradeSignal checkDeterministicNoTrade(Map<String, Object> m15, Map<String, Object> h1Bias) {
-        if (m15 == null || m15.isEmpty() || m15.containsKey("error")) {
-            return noTradeSignal("M15 market data unavailable: " + (m15 != null ? m15.get("error") : "null"));
+    private TradeSignal checkDeterministicNoTrade(Map<String, Object> m5, Map<String, Object> m15Bias) {
+        if (m5 == null || m5.isEmpty() || m5.containsKey("error")) {
+            return noTradeSignal("M5 market data unavailable: " + (m5 != null ? m5.get("error") : "null"));
         }
-        if (h1Bias == null || h1Bias.isEmpty() || h1Bias.containsKey("error")) {
-            return noTradeSignal("H1 bias data unavailable: " + (h1Bias != null ? h1Bias.get("error") : "null"));
-        }
-
-        String h1Trend = String.valueOf(h1Bias.getOrDefault("h1Trend", "RANGE_OR_MIXED")).trim();
-        if ("RANGE_OR_MIXED".equalsIgnoreCase(h1Trend)) {
-            return noTradeSignal("Pre-filter NO_TRADE: H1 bias is RANGE_OR_MIXED.");
+        if (m15Bias == null || m15Bias.isEmpty() || m15Bias.containsKey("error")) {
+            return noTradeSignal("M15 bias data unavailable: " + (m15Bias != null ? m15Bias.get("error") : "null"));
         }
 
-        double atr14 = asDouble(m15.get("atr14"), 0.0);
-        if (atr14 < MIN_M15_ATR) {
+        Object rawTrend = m15Bias.getOrDefault("htfTrend", m15Bias.getOrDefault("h1Trend", "RANGE_OR_MIXED"));
+        String m15Trend = String.valueOf(rawTrend).trim();
+        if ("RANGE_OR_MIXED".equalsIgnoreCase(m15Trend)) {
+            return noTradeSignal("Pre-filter NO_TRADE: M15 bias is RANGE_OR_MIXED.");
+        }
+
+        double atr14 = asDouble(m5.get("atr14"), 0.0);
+        if (atr14 < MIN_M5_ATR) {
             return noTradeSignal(String.format(Locale.ROOT,
-                    "Pre-filter NO_TRADE: M15 ATR %.2f below minimum %.2f.", atr14, MIN_M15_ATR));
+                    "Pre-filter NO_TRADE: M5 ATR %.2f below minimum %.2f.", atr14, MIN_M5_ATR));
         }
 
-        double ema20 = asDouble(m15.get("ema20"), 0.0);
-        double ema50 = asDouble(m15.get("ema50"), 0.0);
+        double ema20 = asDouble(m5.get("ema20"), 0.0);
+        double ema50 = asDouble(m5.get("ema50"), 0.0);
         if (ema20 > 0.0 && ema50 > 0.0 && Math.abs(ema20 - ema50) < (MIN_EMA_SPREAD_ATR_RATIO * atr14)) {
             return noTradeSignal(String.format(Locale.ROOT,
-                    "Pre-filter NO_TRADE: M15 EMA20/EMA50 compressed (spread %.2f < %.2f * ATR).",
+                    "Pre-filter NO_TRADE: M5 EMA20/EMA50 compressed (spread %.2f < %.2f * ATR).",
                     Math.abs(ema20 - ema50), MIN_EMA_SPREAD_ATR_RATIO));
         }
 
-        double rsi14 = asDouble(m15.get("rsi14"), 50.0);
+        double rsi14 = asDouble(m5.get("rsi14"), 50.0);
         if (rsi14 >= NEUTRAL_RSI_LOW && rsi14 <= NEUTRAL_RSI_HIGH) {
             return noTradeSignal(String.format(Locale.ROOT,
-                    "Pre-filter NO_TRADE: M15 RSI %.2f in neutral consolidation zone (%.0f-%.0f).",
+                    "Pre-filter NO_TRADE: M5 RSI %.2f in neutral consolidation zone (%.0f-%.0f).",
                     rsi14, NEUTRAL_RSI_LOW, NEUTRAL_RSI_HIGH));
         }
 

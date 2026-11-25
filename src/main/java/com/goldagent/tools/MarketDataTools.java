@@ -98,41 +98,51 @@ public class MarketDataTools {
     }
 
     public Map<String, Object> getHigherTimeframeBias() {
+        return getHigherTimeframeBias("M15");
+    }
+
+    public Map<String, Object> getHigherTimeframeBias(String timeframe) {
+        String interval = normalizeInterval(timeframe);
         try {
-            List<Candle> h1Candles = fetchCandlesChronological("1h", 220);
-            if (h1Candles.size() < 50) {
-                return Map.of("error", "Insufficient H1 candles for bias calculation");
+            List<Candle> htfCandles = fetchCandlesChronological(interval, 220);
+            if (htfCandles.size() < 50) {
+                return Map.of("error", "Insufficient " + timeframe + " candles for bias calculation");
             }
 
-            Candle latestH1 = h1Candles.get(h1Candles.size() - 1);
-            double h1Ema20 = computeEma(h1Candles, 20);
-            double h1Ema50 = computeEma(h1Candles, 50);
-            double h1Ema200 = h1Candles.size() >= 200 ? computeEma(h1Candles, 200) : h1Ema50;
+            Candle latestHtf = htfCandles.get(htfCandles.size() - 1);
+            double htfEma20 = computeEma(htfCandles, 20);
+            double htfEma50 = computeEma(htfCandles, 50);
+            double htfEma200 = htfCandles.size() >= 200 ? computeEma(htfCandles, 200) : htfEma50;
 
-            String h1Trend;
-            if (latestH1.close() > h1Ema50 && h1Ema20 > h1Ema50) {
-                h1Trend = "BULLISH";
-            } else if (latestH1.close() < h1Ema50 && h1Ema20 < h1Ema50) {
-                h1Trend = "BEARISH";
+            String htfTrend;
+            if (latestHtf.close() > htfEma50 && htfEma20 > htfEma50) {
+                htfTrend = "BULLISH";
+            } else if (latestHtf.close() < htfEma50 && htfEma20 < htfEma50) {
+                htfTrend = "BEARISH";
             } else {
-                h1Trend = "RANGE_OR_MIXED";
+                htfTrend = "RANGE_OR_MIXED";
             }
 
-            int lookbackStart = Math.max(0, h1Candles.size() - 96); // ~4 trading days on H1
+            int lookbackStart = Math.max(0, htfCandles.size() - 96);
             double recentSwingLow = Double.POSITIVE_INFINITY;
             double recentSwingHigh = Double.NEGATIVE_INFINITY;
-            for (int i = lookbackStart; i < h1Candles.size(); i++) {
-                recentSwingLow = Math.min(recentSwingLow, h1Candles.get(i).low());
-                recentSwingHigh = Math.max(recentSwingHigh, h1Candles.get(i).high());
+            for (int i = lookbackStart; i < htfCandles.size(); i++) {
+                recentSwingLow = Math.min(recentSwingLow, htfCandles.get(i).low());
+                recentSwingHigh = Math.max(recentSwingHigh, htfCandles.get(i).high());
             }
 
             Map<String, Object> bias = new LinkedHashMap<>();
             bias.put("symbol", SYMBOL);
-            bias.put("h1Trend", h1Trend);
-            bias.put("h1Close", round2(latestH1.close()));
-            bias.put("h1Ema20", round2(h1Ema20));
-            bias.put("h1Ema50", round2(h1Ema50));
-            bias.put("h1Ema200", round2(h1Ema200));
+            bias.put("biasTimeframe", timeframe);
+            bias.put("interval", interval);
+            bias.put("htfTrend", htfTrend);
+            // Keep h1Trend key alias in case any existing consumer still reads h1Trend
+            bias.put("h1Trend", htfTrend);
+            bias.put("htfCandleDatetime", latestHtf.datetime());
+            bias.put("htfClose", round2(latestHtf.close()));
+            bias.put("htfEma20", round2(htfEma20));
+            bias.put("htfEma50", round2(htfEma50));
+            bias.put("htfEma200", round2(htfEma200));
             bias.put("recentSupport", round2(recentSwingLow));
             bias.put("recentResistance", round2(recentSwingHigh));
             return bias;
@@ -292,13 +302,13 @@ public class MarketDataTools {
     }
 
     private double estimateSpreadPoints(double atr, String interval) {
-        // Spot/CFD APIs don't always return live broker bid/ask spread; flag rollover window explicitly
         int utcHour = ZonedDateTime.now(ZoneOffset.UTC).getHour();
         if (utcHour == 21 || utcHour == 22) {
             return 45.0; // Daily rollover liquidity gap window
         }
-        if ("15min".equals(interval) && atr > 0) {
-            return Math.min(35.0, Math.max(12.0, atr * 3.5));
+        if (("15min".equals(interval) || "5min".equals(interval)) && atr > 0) {
+            double multiplier = "5min".equals(interval) ? 5.0 : 3.5;
+            return Math.min(35.0, Math.max(12.0, atr * multiplier));
         }
         return 18.0;
     }
